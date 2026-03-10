@@ -1,0 +1,44 @@
+import { eq } from 'drizzle-orm';
+import { index, pool } from './db';
+import { demoUsers } from './db/schema';
+
+async function main() {
+    try {
+        console.log('Performing CRUD operations...');
+
+        const [newUser] = await index
+            .insert(demoUsers)
+            .values({ name: 'Admin User', email: 'admin@example.com' })
+            .returning();
+
+        if (!newUser) {
+            throw new Error('Failed to create user');
+        }
+
+        console.log('CREATE:', newUser);
+
+        const foundUser = await index.select().from(demoUsers).where(eq(demoUsers.id, newUser.id));
+        console.log('READ:', foundUser[0]);
+
+        const [updatedUser] = await index
+            .update(demoUsers)
+            .set({ name: 'Super Admin' })
+            .where(eq(demoUsers.id, newUser.id))
+            .returning();
+
+        console.log('UPDATE:', updatedUser);
+
+        await index.delete(demoUsers).where(eq(demoUsers.id, newUser.id));
+        console.log('DELETE done');
+
+    } catch (error) {
+        console.error(error);
+        process.exit(1);
+    } finally {
+        if (pool) {
+            await pool.end();
+        }
+    }
+}
+
+main();
